@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0A1830">
+  <title>SitePass</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    :root{
+      --navy:#0A1830;--navy-800:#11294B;--orange:#FF5C1A;
+      --green:#2E7D52;--red:#C13B3B;--steel:#5C6878;
+      --paper:#F3F1EA;--border:#D8DCE2;--ink:#1B2230;
+    }
+    body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;background:var(--paper);color:var(--ink);min-height:100vh;min-height:100dvh}
+
+    /* LOADING */
+    #loading{display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:16px}
+    .spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--orange);border-radius:50%;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* LOGIN */
+    #login{min-height:100vh;display:flex;flex-direction:column;max-width:480px;margin:0 auto}
+    .login-hdr{background:var(--navy);color:white;padding:52px 24px 32px;border-bottom:4px solid var(--orange)}
+    .login-logo{font-size:34px;font-weight:800;letter-spacing:-0.5px}
+    .login-sub{color:#AEBBD0;font-size:13px;margin-top:4px}
+    .login-body{padding:32px 24px;flex:1}
+    .login-title{font-size:22px;font-weight:800;margin-bottom:24px}
+    .field{margin-bottom:16px}
+    .field label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--steel);margin-bottom:6px}
+    .field input{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:14px 16px;font-size:16px;outline:none;color:var(--ink);background:white;font-family:inherit}
+    .field input:focus{border-color:var(--orange)}
+    .err{background:#FBE4E4;color:var(--red);border-radius:8px;padding:12px 14px;font-size:13px;margin-bottom:16px;font-weight:600}
+
+    /* BUTTONS */
+    .btn{width:100%;border:none;border-radius:10px;padding:16px;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .15s;font-family:inherit}
+    .btn:active{opacity:.82}
+    .btn-orange{background:var(--orange);color:white}
+    .btn-green{background:var(--green);color:white}
+    .btn-red{background:var(--red);color:white}
+    .btn-ghost{background:white;border:1.5px solid var(--border);color:var(--ink)}
+    .btn:disabled{background:var(--border);color:var(--steel);cursor:not-allowed;opacity:1}
+
+    /* APP SHELL */
+    #app{display:none;flex-direction:column;min-height:100vh;min-height:100dvh;max-width:480px;margin:0 auto}
+    .app-hdr{background:var(--navy);color:white;padding:16px 18px 12px;border-bottom:3px solid var(--orange);flex-shrink:0}
+    .hdr-row{display:flex;align-items:center;justify-content:space-between}
+    .avatar{width:38px;height:38px;border-radius:50%;background:var(--orange);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0}
+    .hdr-name{font-size:17px;font-weight:700}
+    .hdr-role{font-size:11px;color:#AEBBD0;margin-top:1px}
+    .hdr-site{font-size:11.5px;color:#AEBBD0;margin-top:8px}
+    .logout-btn{background:rgba(255,255,255,.12);border:none;color:white;border-radius:8px;padding:7px 11px;font-size:12px;cursor:pointer;font-weight:600;white-space:nowrap}
+
+    /* TAB BAR */
+    .tabbar{display:flex;background:white;border-top:1px solid var(--border);flex-shrink:0;position:sticky;bottom:0;z-index:20}
+    .tab{flex:1;border:none;background:transparent;padding:10px 4px 8px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;color:var(--steel);font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;font-family:inherit}
+    .tab.active{color:var(--orange)}
+    .tab-icon{font-size:21px;line-height:1}
+
+    /* BODY */
+    .tab-body{flex:1;padding:18px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;padding-bottom:16px}
+
+    /* CARD */
+    .card{background:white;border:1px solid var(--border);border-radius:12px;padding:16px}
+    .card-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--steel);font-weight:700;margin-bottom:10px}
+
+    /* GPS RADAR */
+    .radar-wrap{display:flex;flex-direction:column;align-items:center;gap:8px}
+    .radar-svg{width:150px;height:150px}
+    .r-ring{fill:none;stroke-width:2;transform-origin:75px 75px;animation:rp 2.4s ease-out infinite}
+    .r-in{stroke:var(--green)}.r-out{stroke:var(--red)}
+    @keyframes rp{0%{transform:scale(.45);opacity:.9}100%{transform:scale(1.1);opacity:0}}
+    .gps-label{font-size:12px;font-weight:700;letter-spacing:.8px;text-transform:uppercase}
+    .gps-in{color:var(--green)}.gps-out{color:var(--red)}.gps-checking{color:var(--steel)}
+
+    /* ELAPSED */
+    .elapsed{text-align:center;font-size:42px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;letter-spacing:2px;line-height:1}
+    .elapsed-sub{text-align:center;font-size:11px;color:var(--steel);text-transform:uppercase;letter-spacing:1px;margin-top:4px}
+
+    /* LOG ROWS */
+    .log-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px}
+    .log-row:last-child{border-bottom:none}
+    .log-date{font-weight:700}
+    .log-right{text-align:right}
+    .log-time{color:var(--steel);font-size:12px}
+    .log-dur{color:var(--green);font-weight:700;font-size:12px;margin-top:2px}
+
+    /* DOC CARDS */
+    .doc-card{background:white;border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;gap:10px}
+    .doc-card:active{background:var(--paper)}
+    .doc-title{font-weight:700;font-size:14px}
+    .doc-sub{font-size:11.5px;color:var(--steel);margin-top:2px}
+    .pill{font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:20px;display:inline-flex;align-items:center;gap:3px;text-transform:uppercase;white-space:nowrap;flex-shrink:0}
+    .pill-green{background:#E1F2E8;color:var(--green)}
+    .pill-orange{background:#FFE3D2;color:var(--orange)}
+
+    /* MODAL */
+    .modal-back{position:fixed;inset:0;background:rgba(10,24,48,.6);display:flex;align-items:flex-end;justify-content:center;z-index:100;padding:0}
+    .modal{background:white;border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:90dvh;display:flex;flex-direction:column}
+    .modal-hdr{padding:20px 20px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;flex-shrink:0}
+    .modal-eyebrow{font-size:10px;letter-spacing:1px;color:var(--orange);font-weight:700}
+    .modal-title{font-size:18px;font-weight:800;margin-top:2px}
+    .close-btn{background:var(--paper);border:none;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;flex-shrink:0}
+    .modal-body{padding:16px 20px;overflow-y:auto;flex:1}
+    .modal-foot{padding:14px 20px 28px;border-top:1px solid var(--border);flex-shrink:0}
+    .doc-para{font-size:14px;line-height:1.65;margin-bottom:14px;color:var(--ink)}
+    .doc-end{text-align:center;font-size:11px;color:var(--steel);padding:8px 0 4px}
+    .scroll-hint{text-align:center;font-size:12px;color:var(--steel);margin-bottom:10px}
+    .signed-note{display:flex;align-items:center;gap:8px;color:var(--green);font-weight:700;font-size:14px;justify-content:center}
+
+    /* SCHEDULE */
+    .today-card{border-radius:12px;padding:16px;margin-bottom:4px}
+    .today-label{font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase}
+    .today-task{font-size:24px;font-weight:800;margin-top:4px}
+    .today-time{font-size:13px;margin-top:4px;opacity:.8}
+    .today-note{font-size:13px;margin-top:10px;padding:10px 12px;background:rgba(255,255,255,.65);border-radius:8px}
+    .sched-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:white;margin-bottom:8px}
+    .sched-dow{font-size:10px;font-weight:800;text-transform:uppercase;color:var(--steel)}
+    .sched-dn{font-size:16px;font-weight:800;color:var(--navy)}
+    .sched-task{font-weight:700;font-size:14px}
+    .sched-sub{font-size:11.5px;color:var(--steel);margin-top:2px}
+    .sched-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-left:auto}
+
+    /* SUPERVISOR */
+    .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .stat-card{background:white;border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+    .stat-num{font-size:28px;font-weight:800;color:var(--navy)}
+    .stat-label{font-size:11px;color:var(--steel);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+    .w-card{background:white;border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+    .w-name{font-size:15px;font-weight:700}
+    .w-role{font-size:12px;color:var(--steel)}
+    .w-meta{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;align-items:center}
+    .sdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
+    .admin-tabs{display:flex;background:white;border:1px solid var(--border);border-radius:10px;padding:3px;gap:3px}
+    .atab{flex:1;border:none;background:transparent;padding:9px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;color:var(--steel);font-family:inherit}
+    .atab.active{background:var(--navy);color:white}
+
+    /* EDIT MODAL FIELDS */
+    .f-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--steel);margin-bottom:6px;display:block}
+    .f-input{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:11px 14px;font-size:14px;font-family:inherit;outline:none;color:var(--ink)}
+    .f-input:focus{border-color:var(--orange)}
+    .task-chips{display:flex;flex-wrap:wrap;gap:6px}
+    .tchip{border:2px solid var(--border);background:white;border-radius:20px;padding:6px 13px;font-size:12.5px;font-weight:700;cursor:pointer;color:var(--steel);font-family:inherit}
+    .time-row{display:flex;gap:12px}
+    .time-row>div{flex:1}
+
+    .empty{text-align:center;color:var(--steel);font-size:13.5px;padding:28px 16px}
+    .section-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--steel);font-weight:700}
+    .week-total{font-size:26px;font-weight:800;color:var(--navy)}
+    .warn{text-align:center;font-size:12.5px;color:var(--red);font-weight:700}
+  </style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div style="color:var(--steel);font-size:14px">Loading SitePass…</div>
+</div>
+
+<div id="login">
+  <div class="login-hdr">
+    <div class="login-logo">SitePass</div>
+    <div class="login-sub">GEC Oakridge · Cambie &amp; 42nd Ave, Vancouver</div>
+  </div>
+  <div class="login-body">
+    <div class="login-title">Sign in to your account</div>
+    <div id="loginErr" class="err" style="display:none"></div>
+    <div class="field"><label>Email</label><input type="email" id="emailIn" placeholder="you@example.com" autocomplete="email"></div>
+    <div class="field"><label>Password</label><input type="password" id="passIn" placeholder="••••••••" autocomplete="current-password"></div>
+    <button class="btn btn-orange" id="loginBtn" style="margin-top:8px">Sign In</button>
+  </div>
+</div>
+
+<div id="app">
+  <div class="app-hdr">
+    <div class="hdr-row">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="avatar" id="hdrAvatar"></div>
+        <div><div class="hdr-name" id="hdrName"></div><div class="hdr-role" id="hdrRole"></div></div>
+      </div>
+      <button class="logout-btn" id="logoutBtn">Sign out</button>
+    </div>
+    <div class="hdr-site">📍 GEC Oakridge — Cambie &amp; 42nd Ave</div>
+  </div>
+  <div class="tab-body" id="tabBody"></div>
+  <div class="tabbar" id="tabBar"></div>
+  <div id="modalSlot"></div>
+</div>
+
+<script>
+// ── SUPABASE ──────────────────────────────────────────────────────────────────
+const { createClient } = supabase;
+const db = createClient(
+  'https://vsfptxghiibsusmpizto.supabase.co',
+  'sb_publishable_dLE22v1dyP2LvjdT9_x1OQ_6kdoQXoG'
+);
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let S = {
+  profile: null, site: null,
+  sessions: [], openSession: null,
+  documents: [], signatures: [],
+  schedule: [], workers: [],
+  gps: 'checking',   // checking | inside | outside | denied
+  workerTab: 'checkin',
+  adminTab: 'roster',
+  viewDoc: null, scrolledEnd: false,
+  editDay: null,
+};
+let gpsId = null, tickId = null;
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+const pad    = n => String(n).padStart(2,'0');
+const fmtT   = d => new Date(d).toLocaleTimeString('en-CA',{hour:'numeric',minute:'2-digit'});
+const fmtD   = d => new Date(d).toLocaleDateString('en-CA',{weekday:'short',month:'short',day:'numeric'});
+const fmtDOW = d => new Date(d).toLocaleDateString('en-CA',{weekday:'short'});
+const fmtMD  = d => new Date(d).toLocaleDateString('en-CA',{month:'short',day:'numeric'});
+const fmtDur = ms => { const m=Math.max(0,Math.round(ms/60000)); return `${Math.floor(m/60)}h ${pad(m%60)}m`; };
+const fmtEl  = ms => { const s=Math.max(0,Math.floor(ms/1000)); return `${pad(Math.floor(s/3600))}:${pad(Math.floor((s%3600)/60))}:${pad(s%60)}`; };
+const isToday = d => { const a=new Date(d),b=new Date(); return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate(); };
+const initials = n => (n||'').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+
+function haversine(lat1,lon1,lat2,lon2){
+  const R=6371000, dLat=(lat2-lat1)*Math.PI/180, dLon=(lon2-lon1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+const TC = {
+  'Stripping':      {bg:'#FFF3E0',bd:'#FF9800',tx:'#E65100'},
+  'Columns':        {bg:'#E8EAF6',bd:'#5C6BC0',tx:'#283593'},
+  'Deck Pour':      {bg:'#E8F5E9',bd:'#4CAF50',tx:'#1B5E20'},
+  'Concrete':       {bg:'#FCE4EC',bd:'#E91E63',tx:'#880E4F'},
+  'Rebar':          {bg:'#F3E5F5',bd:'#9C27B0',tx:'#4A148C'},
+  'Formwork':       {bg:'#E0F7FA',bd:'#00BCD4',tx:'#006064'},
+  'Inspection':     {bg:'#FFF9C4',bd:'#F9A825',tx:'#F57F17'},
+  'Safety Meeting': {bg:'#FFEBEE',bd:'#F44336',tx:'#B71C1C'},
+  'General Labour': {bg:'#EFEBE9',bd:'#795548',tx:'#3E2723'},
+};
+
+// ── SHOW/HIDE SCREENS ─────────────────────────────────────────────────────────
+const $load  = document.getElementById('loading');
+const $login = document.getElementById('login');
+const $app   = document.getElementById('app');
+
+function showScreen(s){
+  $load.style.display  = s==='loading' ? 'flex'  : 'none';
+  $login.style.display = s==='login'   ? 'flex'  : 'none';
+  $app.style.display   = s==='app'     ? 'flex'  : 'none';
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function render(){
+  const p = S.profile;
+  if(!p) return;
+  document.getElementById('hdrAvatar').textContent = initials(p.name);
+  document.getElementById('hdrName').textContent   = p.name || 'User';
+  document.getElementById('hdrRole').textContent   = p.role === 'supervisor' ? 'Supervisor' : (p.trade||'Worker');
+
+  if(p.role === 'supervisor'){
+    renderSupervisor();
+  } else {
+    renderWorker();
+  }
+}
+
+// ── WORKER ────────────────────────────────────────────────────────────────────
+function renderWorker(){
+  document.getElementById('tabBar').innerHTML = `
+    <button class="tab ${S.workerTab==='checkin'?'active':''}"  data-wtab="checkin" ><span class="tab-icon">🕐</span>Check In</button>
+    <button class="tab ${S.workerTab==='docs'?'active':''}"     data-wtab="docs"    ><span class="tab-icon">📄</span>Docs</button>
+    <button class="tab ${S.workerTab==='hours'?'active':''}"    data-wtab="hours"   ><span class="tab-icon">⏱</span>Hours</button>
+    <button class="tab ${S.workerTab==='schedule'?'active':''}" data-wtab="schedule"><span class="tab-icon">📅</span>Schedule</button>`;
+  document.querySelectorAll('[data-wtab]').forEach(b => b.addEventListener('click',()=>{ S.workerTab=b.dataset.wtab; renderWorker(); }));
+
+  const body = document.getElementById('tabBody');
+  if     (S.workerTab==='checkin' ) body.innerHTML = htmlCheckin();
+  else if(S.workerTab==='docs'    ) body.innerHTML = htmlDocs();
+  else if(S.workerTab==='hours'   ) body.innerHTML = htmlHours();
+  else if(S.workerTab==='schedule') body.innerHTML = htmlWorkerSchedule();
+
+  attachWorkerEvents();
+  document.getElementById('modalSlot').innerHTML = S.viewDoc ? htmlDocModal() : '';
+  if(S.viewDoc) attachDocModalEvents();
+}
+
+function htmlCheckin(){
+  const inside    = S.gps==='inside';
+  const checking  = S.gps==='checking';
+  const denied    = S.gps==='denied';
+  const open      = S.openSession;
+  const elapsed   = open ? Date.now()-new Date(open.check_in).getTime() : 0;
+  const dot       = inside ? 'var(--green)' : (checking ? 'var(--steel)' : 'var(--red)');
+  const cx        = inside ? 75 : 138;
+  const cy        = inside ? 75 : 22;
+  const ringClass = inside ? 'r-in' : 'r-out';
+  const gpsLabel  = checking ? '📡 Getting your location…' : inside ? '✅ WITHIN SITE BOUNDARY' : denied ? '🚫 LOCATION DENIED — check phone settings' : '❌ OUTSIDE SITE BOUNDARY';
+  const gpsClass  = checking ? 'gps-checking' : inside ? 'gps-in' : 'gps-out';
+  return `
+  <div class="radar-wrap">
+    <svg class="radar-svg" viewBox="0 0 150 150">
+      <circle cx="75" cy="75" r="62" class="r-ring ${ringClass}" style="animation-delay:0s"/>
+      <circle cx="75" cy="75" r="62" class="r-ring ${ringClass}" style="animation-delay:1.2s"/>
+      <circle cx="75" cy="75" r="62" fill="none" stroke="#D8DCE2" stroke-width="1.5" stroke-dasharray="4 5" opacity=".6"/>
+      <circle cx="75" cy="75" r="5" fill="var(--navy)"/>
+      <circle cx="${cx}" cy="${cy}" r="8" fill="${dot}" stroke="white" stroke-width="2.5" style="transition:cx .6s,cy .6s"/>
+    </svg>
+    <div class="gps-label ${gpsClass}">${gpsLabel}</div>
+  </div>
+  ${denied ? `<div class="card"><p style="font-size:13.5px;color:var(--steel);line-height:1.5">To enable check-in, go to your phone <strong>Settings → this browser → Location → Allow</strong>.</p></div>` : ''}
+  ${open
+    ? `<div class="elapsed" id="elapsedDisplay">${fmtEl(elapsed)}</div>
+       <div class="elapsed-sub">Checked in at ${fmtT(open.check_in)}</div>
+       <button class="btn btn-red" id="checkoutBtn">⬆️ Check Out</button>`
+    : `<button class="btn btn-green" id="checkinBtn" ${!inside?'disabled':''}>⬇️ Check In</button>
+       ${!inside&&!checking?`<div class="warn">You must be on site to check in</div>`:''}`
+  }
+  <div class="card">
+    <div class="card-title">This week</div>
+    ${S.sessions.length===0&&!open?`<div class="empty" style="padding:8px 0">No sessions yet</div>`:''}
+    ${S.sessions.map(s=>`
+      <div class="log-row">
+        <div class="log-date">${fmtD(s.check_in)}</div>
+        <div class="log-right">
+          <div class="log-time">${fmtT(s.check_in)} – ${fmtT(s.check_out)}</div>
+          <div class="log-dur">${fmtDur(new Date(s.check_out)-new Date(s.check_in))}</div>
+        </div>
+      </div>`).join('')}
+    ${open?`<div class="log-row"><div class="log-date">Today</div><div style="color:var(--green);font-weight:700;font-size:12px">🟢 In progress</div></div>`:''}
+  </div>`;
+}
+
+function htmlDocs(){
+  const sig = id => S.signatures.find(s=>s.document_id===id);
+  return `
+  <div class="section-label">${S.signatures.length}/${S.documents.length} documents signed</div>
+  ${S.documents.map(doc=>{
+    const s=sig(doc.id);
+    return `<div class="doc-card" data-docid="${doc.id}">
+      <div>
+        <div class="doc-title">${doc.title}</div>
+        <div class="doc-sub">${s?'Signed '+fmtD(s.signed_at):'Tap to read &amp; sign'}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="pill ${s?'pill-green':'pill-orange'}">${s?'✓ Signed':'Pending'}</span>
+        <span style="color:var(--steel);font-size:18px">›</span>
+      </div>
+    </div>`;
+  }).join('')}`;
+}
+
+function htmlDocModal(){
+  const doc    = S.viewDoc;
+  const signed = S.signatures.find(s=>s.document_id===doc.id);
+  return `
+  <div class="modal-back" id="modalBack">
+    <div class="modal">
+      <div class="modal-hdr">
+        <div><div class="modal-eyebrow">SAFETY DOCUMENT</div><div class="modal-title">${doc.title}</div></div>
+        <button class="close-btn" id="closeDoc">✕</button>
+      </div>
+      <div class="modal-body" id="docScroll">
+        ${doc.body.split('. ').filter(Boolean).map(p=>`<p class="doc-para">${p.trim()}.</p>`).join('')}
+        <div class="doc-end">— End of document —</div>
+      </div>
+      <div class="modal-foot">
+        ${signed
+          ? `<div class="signed-note">✅ Signed ${fmtD(signed.signed_at)} at ${fmtT(signed.signed_at)}</div>`
+          : `${!S.scrolledEnd?`<div class="scroll-hint">👆 Scroll to the bottom to unlock signing</div>`:''}
+             <button class="btn btn-orange" id="signBtn" ${!S.scrolledEnd?'disabled':''}>I have read and understood this document</button>`
+        }
+      </div>
+    </div>
+  </div>`;
+}
+
+function htmlHours(){
+  const total = S.sessions.reduce((s,x)=>s+(new Date(x.check_out)-new Date(x.check_in)),0)
+    + (S.openSession ? Date.now()-new Date(S.openSession.check_in).getTime() : 0);
+  return `
+  <div class="week-total">${fmtDur(total)} this week</div>
+  ${S.sessions.length===0&&!S.openSession?`<div class="empty">No hours logged yet</div>`:''}
+  ${S.sessions.map(s=>`
+    <div class="card" style="padding:13px 15px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-weight:700">${fmtD(s.check_in)}</div>
+        <div style="font-size:12px;color:var(--steel);margin-top:3px">${fmtT(s.check_in)} → ${fmtT(s.check_out)}</div></div>
+        <div style="font-size:16px;font-weight:800;color:var(--green)">${fmtDur(new Date(s.check_out)-new Date(s.check_in))}</div>
+      </div>
+    </div>`).join('')}
+  ${S.openSession?`
+    <div class="card" style="padding:13px 15px;border-color:var(--green)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-weight:700">Today</div>
+        <div style="font-size:12px;color:var(--green);margin-top:3px">🟢 Since ${fmtT(S.openSession.check_in)}</div></div>
+        <div style="font-size:16px;font-weight:800;color:var(--green)" id="hoursElapsed">${fmtDur(Date.now()-new Date(S.openSession.check_in).getTime())}</div>
+      </div>
+    </div>`:''}`;
+}
+
+function htmlWorkerSchedule(){
+  if(!S.schedule.length) return `<div class="empty">No schedule set for this week yet</div>`;
+  const today = S.schedule.find(d=>isToday(d.date));
+  const c = today ? (TC[today.task]||{bg:'#f5f5f5',bd:'#ccc',tx:'#555'}) : null;
+  return `
+  ${today?`
+    <div class="today-card" style="background:${c.bg};border:2px solid ${c.bd}">
+      <div class="today-label" style="color:${c.tx}">TODAY</div>
+      <div class="today-task" style="color:${c.tx}">${today.task}</div>
+      <div class="today-time" style="color:${c.tx}">${today.start_time} – ${today.end_time}</div>
+      ${today.note?`<div class="today-note">${today.note}</div>`:''}
+    </div>`:''}
+  ${S.schedule.map(day=>{
+    const dc = TC[day.task]||{bg:'#f5f5f5',bd:'#ccc',tx:'#555'};
+    const tod = isToday(day.date);
+    const past = new Date(day.date)<new Date()&&!tod;
+    return `<div class="sched-row" style="border-color:${tod?dc.bd:'var(--border)'};background:${tod?dc.bg:'white'};opacity:${past?.6:1}">
+      <div style="min-width:38px;text-align:center">
+        <div class="sched-dow" style="color:${tod?dc.tx:'var(--steel)'}">${fmtDOW(day.date)}</div>
+        <div class="sched-dn" style="color:${tod?dc.tx:'var(--navy)'}">${new Date(day.date).getDate()}</div>
+      </div>
+      <div>
+        <div class="sched-task" style="color:${tod?dc.tx:'var(--ink)'}">${day.task}</div>
+        <div class="sched-sub">${day.start_time} – ${day.end_time}${day.note?' · '+day.note:''}</div>
+      </div>
+      <div class="sched-dot" style="background:${dc.bd}"></div>
+    </div>`;
+  }).join('')}`;
+}
+
+function attachWorkerEvents(){
+  document.getElementById('checkinBtn')?.addEventListener('click', doCheckIn);
+  document.getElementById('checkoutBtn')?.addEventListener('click', doCheckOut);
+  document.querySelectorAll('[data-docid]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      S.viewDoc = S.documents.find(d=>d.id===el.dataset.docid);
+      S.scrolledEnd = !!S.signatures.find(s=>s.document_id===el.dataset.docid);
+      render();
+      setTimeout(()=>{
+        const sc=document.getElementById('docScroll');
+        if(sc) sc.addEventListener('scroll',()=>{
+          if(sc.scrollTop+sc.clientHeight>=sc.scrollHeight-30){ S.scrolledEnd=true; render(); }
+        },{passive:true});
+      },100);
+    });
+  });
+}
+
+function attachDocModalEvents(){
+  document.getElementById('closeDoc')?.addEventListener('click',()=>{S.viewDoc=null;render();});
+  document.getElementById('modalBack')?.addEventListener('click',e=>{if(e.target.id==='modalBack'){S.viewDoc=null;render();}});
+  document.getElementById('signBtn')?.addEventListener('click', doSign);
+}
+
+// ── SUPERVISOR ────────────────────────────────────────────────────────────────
+function renderSupervisor(){
+  document.getElementById('tabBar').innerHTML = `
+    <div class="admin-tabs" style="flex:1;margin:8px">
+      <button class="atab ${S.adminTab==='roster'?'active':''}"   data-atab="roster"  >👷 Roster</button>
+      <button class="atab ${S.adminTab==='schedule'?'active':''}" data-atab="schedule">📅 Schedule</button>
+    </div>`;
+  document.querySelectorAll('[data-atab]').forEach(b=>b.addEventListener('click',()=>{ S.adminTab=b.dataset.atab; renderSupervisor(); }));
+
+  const body = document.getElementById('tabBody');
+  body.innerHTML = S.adminTab==='roster' ? htmlRoster() : htmlAdminSchedule();
+  attachSupervisorEvents();
+
+  document.getElementById('modalSlot').innerHTML = S.editDay ? htmlEditModal() : '';
+  if(S.editDay) attachEditEvents();
+}
+
+function htmlRoster(){
+  const onSite    = S.workers.filter(w=>w.openSession).length;
+  const totalSigs = S.workers.length * S.documents.length;
+  const allSigs   = S.workers.reduce((s,w)=>s+w.signatures.length,0);
+  const unsigned  = totalSigs - allSigs;
+  return `
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-num">${S.workers.length}</div><div class="stat-label">Workers</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:${onSite?'var(--green)':'var(--navy)'}">${onSite}</div><div class="stat-label">On Site Now</div></div>
+    <div class="stat-card"><div class="stat-num">${totalSigs?Math.round(allSigs/totalSigs*100):0}%</div><div class="stat-label">Compliance</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:${unsigned?'var(--orange)':'var(--green)'}">${unsigned}</div><div class="stat-label">Unsigned Docs</div></div>
+  </div>
+  ${S.workers.length===0?`<div class="empty">No workers in the system yet</div>`:''}
+  ${S.workers.map(w=>{
+    const open    = w.openSession;
+    const totalMs = (w.sessions||[]).reduce((s,x)=>s+(new Date(x.check_out)-new Date(x.check_in)),0)+(open?Date.now()-new Date(open.check_in).getTime():0);
+    const signed  = w.signatures.length;
+    const total   = S.documents.length;
+    const missing = S.documents.filter(d=>!w.signatures.find(s=>s.document_id===d.id)).map(d=>d.title);
+    return `<div class="w-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div><div class="w-name">${w.name}</div><div class="w-role">${w.trade||'Worker'}</div></div>
+        <span class="pill ${signed===total?'pill-green':'pill-orange'}">${signed}/${total} signed</span>
+      </div>
+      <div class="w-meta">
+        <span style="font-size:12.5px;color:${open?'var(--green)':'var(--steel)'}">
+          <span class="sdot" style="background:${open?'var(--green)':'var(--border)'}"></span>
+          ${open?'On site since '+fmtT(open.check_in):'Not checked in'}
+        </span>
+        <span style="font-size:12.5px;color:var(--steel)">⏱ ${fmtDur(totalMs)}</span>
+      </div>
+      ${missing.length?`<div style="font-size:11.5px;color:var(--steel);margin-top:8px">Missing: ${missing.join(', ')}</div>`:''}
+    </div>`;
+  }).join('')}`;
+}
+
+function htmlAdminSchedule(){
+  if(!S.schedule.length) return `<div class="empty">No schedule yet. Tap + to add days.</div>`;
+  return `
+  <div style="font-size:11px;color:var(--steel);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Tap a day to edit</div>
+  ${S.schedule.map(day=>{
+    const dc=TC[day.task]||{bg:'#f5f5f5',bd:'#ccc',tx:'#555'};
+    return `<div class="sched-row" style="border-color:${dc.bd};background:${dc.bg};cursor:pointer" data-editday="${day.id}">
+      <div style="min-width:38px;text-align:center">
+        <div class="sched-dow" style="color:${dc.tx}">${fmtDOW(day.date)}</div>
+        <div class="sched-dn" style="color:${dc.tx}">${new Date(day.date).getDate()}</div>
+      </div>
+      <div style="flex:1">
+        <div class="sched-task" style="color:${dc.tx}">${day.task}</div>
+        <div class="sched-sub">${day.start_time} – ${day.end_time}${day.note?' · '+day.note:''}</div>
+      </div>
+      <div style="color:${dc.tx};font-size:18px">✏️</div>
+    </div>`;
+  }).join('')}`;
+}
+
+function htmlEditModal(){
+  const day = S.editDay;
+  return `
+  <div class="modal-back" id="editBack">
+    <div class="modal">
+      <div class="modal-hdr">
+        <div><div class="modal-eyebrow">EDIT SCHEDULE</div><div class="modal-title">${fmtDOW(day.date)}, ${fmtMD(day.date)}</div></div>
+        <button class="close-btn" id="closeEdit">✕</button>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:16px">
+        <div>
+          <label class="f-label">Task Type</label>
+          <div class="task-chips">
+            ${Object.keys(TC).map(t=>{const c=TC[t];const sel=day.task===t;return `<button class="tchip" data-task="${t}" style="border-color:${sel?c.bd:'var(--border)'};background:${sel?c.bg:'white'};color:${sel?c.tx:'var(--steel)'}">${t}</button>`;}).join('')}
+          </div>
+        </div>
+        <div>
+          <label class="f-label">Shift Times</label>
+          <div class="time-row" style="margin-top:6px">
+            <div><div style="font-size:11px;color:var(--steel);margin-bottom:4px">Start</div>
+              <input class="f-input" type="time" id="editStart" value="${day.start_time}"></div>
+            <div><div style="font-size:11px;color:var(--steel);margin-bottom:4px">End</div>
+              <input class="f-input" type="time" id="editEnd" value="${day.end_time}"></div>
+          </div>
+        </div>
+        <div>
+          <label class="f-label">Crew Notes</label>
+          <textarea class="f-input" id="editNote" rows="3" style="margin-top:6px;resize:vertical" placeholder="e.g. Bring fall harness, pump truck at 7am…">${day.note||''}</textarea>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-orange" id="saveSchedBtn">💾 Save Schedule</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function attachSupervisorEvents(){
+  document.querySelectorAll('[data-editday]').forEach(el=>{
+    el.addEventListener('click',()=>{ S.editDay={...S.schedule.find(d=>d.id===el.dataset.editday)}; renderSupervisor(); });
+  });
+}
+
+function attachEditEvents(){
+  document.getElementById('closeEdit')?.addEventListener('click',()=>{S.editDay=null;renderSupervisor();});
+  document.getElementById('editBack')?.addEventListener('click',e=>{if(e.target.id==='editBack'){S.editDay=null;renderSupervisor();}});
+  document.querySelectorAll('[data-task]').forEach(chip=>{
+    chip.addEventListener('click',()=>{ if(S.editDay){S.editDay.task=chip.dataset.task;renderSupervisor();} });
+  });
+  document.getElementById('saveSchedBtn')?.addEventListener('click', doSaveSchedule);
+}
+
+// ── ACTIONS ───────────────────────────────────────────────────────────────────
+async function doCheckIn(){
+  if(S.gps!=='inside'||S.openSession) return;
+  const {data,error} = await db.from('sessions').insert({
+    worker_id: S.profile.id,
+    site_id:   S.site?.id,
+    check_in:  new Date().toISOString(),
+  }).select().single();
+  if(!error){ S.openSession=data; startTick(); render(); }
+}
+
+async function doCheckOut(){
+  if(!S.openSession) return;
+  const {data,error} = await db.from('sessions')
+    .update({check_out:new Date().toISOString()})
+    .eq('id',S.openSession.id).select().single();
+  if(!error){ S.sessions=[data,...S.sessions]; S.openSession=null; stopTick(); render(); }
+}
+
+async function doSign(){
+  if(!S.viewDoc) return;
+  const {data,error} = await db.from('signatures').insert({
+    worker_id:   S.profile.id,
+    document_id: S.viewDoc.id,
+  }).select().single();
+  if(!error){ S.signatures=[...S.signatures,data]; S.viewDoc=null; render(); }
+}
+
+async function doSaveSchedule(){
+  const day   = S.editDay;
+  const start = document.getElementById('editStart')?.value||day.start_time;
+  const end   = document.getElementById('editEnd')?.value||day.end_time;
+  const note  = document.getElementById('editNote')?.value||'';
+  const {data,error} = await db.from('schedule')
+    .update({task:day.task,start_time:start,end_time:end,note})
+    .eq('id',day.id).select().single();
+  if(!error){ S.schedule=S.schedule.map(d=>d.id===day.id?data:d); S.editDay=null; renderSupervisor(); }
+}
+
+// ── GPS ───────────────────────────────────────────────────────────────────────
+function startGPS(){
+  if(!navigator.geolocation||!S.site) return;
+  gpsId = navigator.geolocation.watchPosition(
+    pos=>{
+      const d = haversine(pos.coords.latitude,pos.coords.longitude,S.site.lat,S.site.lng);
+      const nxt = d<=S.site.radius_metres?'inside':'outside';
+      if(nxt!==S.gps){ S.gps=nxt; if(S.profile?.role!=='supervisor') render(); }
+    },
+    err=>{ const nxt=err.code===1?'denied':'unavailable'; if(nxt!==S.gps){ S.gps=nxt; if(S.profile?.role!=='supervisor') render(); } },
+    {enableHighAccuracy:true,maximumAge:10000,timeout:15000}
+  );
+}
+
+function stopGPS(){ if(gpsId!==null){ navigator.geolocation.clearWatch(gpsId); gpsId=null; } }
+
+// ── ELAPSED TICK ──────────────────────────────────────────────────────────────
+function startTick(){
+  stopTick();
+  tickId = setInterval(()=>{
+    if(!S.openSession) return;
+    const ms = Date.now()-new Date(S.openSession.check_in).getTime();
+    const el = document.getElementById('elapsedDisplay');
+    if(el) el.textContent = fmtEl(ms);
+    const he = document.getElementById('hoursElapsed');
+    if(he) he.textContent = fmtDur(ms);
+  },1000);
+}
+function stopTick(){ clearInterval(tickId); tickId=null; }
+
+// ── DATA LOAD ─────────────────────────────────────────────────────────────────
+async function loadWorker(uid){
+  const [openRes, sessRes, sigRes, docRes, schedRes, siteRes] = await Promise.all([
+    db.from('sessions').select('*').eq('worker_id',uid).is('check_out',null).maybeSingle(),
+    db.from('sessions').select('*').eq('worker_id',uid).not('check_out','is',null).order('check_in',{ascending:false}).limit(20),
+    db.from('signatures').select('*').eq('worker_id',uid),
+    db.from('documents').select('*').order('title'),
+    db.from('schedule').select('*').order('date'),
+    db.from('sites').select('*').limit(1).maybeSingle(),
+  ]);
+  S.openSession = openRes.data||null;
+  S.sessions    = sessRes.data||[];
+  S.signatures  = sigRes.data||[];
+  S.documents   = docRes.data||[];
+  S.schedule    = schedRes.data||[];
+  S.site        = siteRes.data||null;
+}
+
+async function loadSupervisor(){
+  const [docRes, schedRes, siteRes, profRes] = await Promise.all([
+    db.from('documents').select('*').order('title'),
+    db.from('schedule').select('*').order('date'),
+    db.from('sites').select('*').limit(1).maybeSingle(),
+    db.from('profiles').select('*').eq('role','worker'),
+  ]);
+  S.documents = docRes.data||[];
+  S.schedule  = schedRes.data||[];
+  S.site      = siteRes.data||null;
+  const profiles = profRes.data||[];
+  S.workers = await Promise.all(profiles.map(async p=>{
+    const [oRes,sRes,sigRes] = await Promise.all([
+      db.from('sessions').select('*').eq('worker_id',p.id).is('check_out',null).maybeSingle(),
+      db.from('sessions').select('*').eq('worker_id',p.id).not('check_out','is',null).order('check_in',{ascending:false}).limit(10),
+      db.from('signatures').select('*').eq('worker_id',p.id),
+    ]);
+    return{...p, openSession:oRes.data||null, sessions:sRes.data||[], signatures:sigRes.data||[]};
+  }));
+}
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+document.getElementById('loginBtn').addEventListener('click', async()=>{
+  const email = document.getElementById('emailIn').value.trim();
+  const pass  = document.getElementById('passIn').value;
+  const errEl = document.getElementById('loginErr');
+  errEl.style.display='none';
+  document.getElementById('loginBtn').textContent='Signing in…';
+  document.getElementById('loginBtn').disabled=true;
+  const {error} = await db.auth.signInWithPassword({email,password:pass});
+  document.getElementById('loginBtn').textContent='Sign In';
+  document.getElementById('loginBtn').disabled=false;
+  if(error){ errEl.textContent=error.message; errEl.style.display='block'; }
+});
+document.getElementById('passIn').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('loginBtn').click(); });
+
+document.getElementById('logoutBtn').addEventListener('click',async()=>{
+  stopGPS(); stopTick();
+  await db.auth.signOut();
+  S = {profile:null,site:null,sessions:[],openSession:null,documents:[],signatures:[],schedule:[],workers:[],gps:'checking',workerTab:'checkin',adminTab:'roster',viewDoc:null,scrolledEnd:false,editDay:null};
+  showScreen('login');
+});
+
+db.auth.onAuthStateChange(async(_,session)=>{
+  if(!session){ showScreen('login'); return; }
+  showScreen('loading');
+  const {data:profile} = await db.from('profiles').select('*').eq('id',session.user.id).maybeSingle();
+  if(!profile){
+    const errEl = document.getElementById('loginErr');
+    errEl.textContent = 'Account not fully set up yet. Contact your supervisor.';
+    errEl.style.display = 'block';
+    showScreen('login');
+    return;
+  }
+  S.profile = profile;
+  if(profile.role==='supervisor'){
+    await loadSupervisor();
+    showScreen('app');
+    render();
+  } else {
+    await loadWorker(session.user.id);
+    showScreen('app');
+    render();
+    startGPS();
+    if(S.openSession) startTick();
+  }
+});
+</script>
+</body>
+</html>
